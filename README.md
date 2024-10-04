@@ -7,7 +7,7 @@ A simple template to get information about places from Google My Business with P
 
 or you can run it like here 
 ```bazaar
-GOOGLE_MAPS_API_KEY="PUT_YOUR_KEY" python main.py
+GOOGLE_MAPS_API_KEY="PUT_YOUR_KEY" python app/main.py
 ```
 
 ## Customize
