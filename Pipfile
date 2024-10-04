@@ -5,16 +5,8 @@ name = "pypi"
 
 [packages]
 requests = "*"
-pandas = "*"
 
 [dev-packages]
 
 [requires]
 python_version = "3.12"
-
-[metadata]
-name = "Google My Business Places to CSV"
-version = "0.1.1"
-description = "Simple template to get information about places from Google My Business with Places API and convert it CSV file with Pandas"
-authors = ["Anar Dzhafarov a@dzhfrv.com"]
-license = "MIT"

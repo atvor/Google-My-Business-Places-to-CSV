@@ -1,24 +1,51 @@
-import pandas as pd
+import json
+import csv
 
 
-# def flatten_dict(d, parent_key='', sep='_'):
-# TODO fix or create multiple headers
-#     items = []
-#     for k, v in d.items():
-#         new_key = f'{parent_key}{sep}{k}' if parent_key else k
-#         if isinstance(v, dict):
-#             items.extend(flatten_dict(v, new_key, sep=sep).items())
-#         else:
-#             items.append((new_key, v))
-#     return dict(items)
+def convert_json_to_csv(json_data, csv_path):
+    # Prepare the CSV file
+    with open(csv_path, 'w', newline='', encoding='utf-8') as csv_file:
+        writer = csv.writer(csv_file)
 
+        # Write the headers
+        writer.writerow([
+            "coordinate",
+            "types",
+            "websiteUri",
+            "nationalPhoneNumber",
+            "internationalPhoneNumber",
+            "formattedAddress",
+            "displayName",
+            "rating",
+            "userRatingCount",
+            "googleMapsUri"
+        ])
 
-def write_dict_to_csv(data, filename):
-    # Flatten the dictionary
-    # flat_dict = flatten_dict(data)
+        # Iterate over each coordinate and its associated businesses
+        for coordinate, businesses in json_data.items():
+            if businesses:  # Check if there are businesses at this coordinate
+                for business in businesses:
+                    # Extract business details, provide defaults if missing
+                    types = ', '.join(business.get('types', []))
+                    websiteUri = business.get('websiteUri', '')
+                    nationalPhoneNumber = business.get('nationalPhoneNumber', '')
+                    internationalPhoneNumber = business.get('internationalPhoneNumber', '')
+                    formattedAddress = business.get('formattedAddress', '')
+                    displayName = business.get('displayName', {}).get('text', '')
+                    rating = business.get('rating', '')
+                    userRatingCount = business.get('userRatingCount', '')
+                    googleMapsUri = business.get('googleMapsUri', '')
 
-    # Convert to DataFrame
-    df = pd.DataFrame(data)
-
-    # Write to CSV
-    df.to_csv(filename, index=False)
+                    # Write the row for each business
+                    writer.writerow([
+                        coordinate,
+                        types,
+                        websiteUri,
+                        nationalPhoneNumber,
+                        internationalPhoneNumber,
+                        formattedAddress,
+                        displayName,
+                        rating,
+                        userRatingCount,
+                        googleMapsUri
+                    ])
