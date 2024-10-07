@@ -17,7 +17,7 @@ my_lat_cf = 1
 my_lon_cf = 1.6
 
 # # https://developers.google.com/maps/documentation/places/web-service/place-types
-my_places_types = ["accounting"]
+my_places_types = ["accounting", "lawyer", "real_estate_agency"]
 
 # ----------------------------------- OUTPUT -------------------------------------------
 mapsAPI = MapsAPI()

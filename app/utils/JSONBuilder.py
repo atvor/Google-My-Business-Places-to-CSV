@@ -34,44 +34,52 @@ def bulk_points_to_json(points,
                         max_result_len=20,
                         request_per_minute=600):
     request_number = 0
-    for point in points:
-        if request_number >= request_per_minute:
-            print('reached request per minute limit')
-            time.sleep(60)
-            request_number = 0
+    request_limit = 0
+    found_places = 0
+    for place_type in places_types:
+        print(place_type)
+        for point in points:
+            if request_limit >= request_per_minute:
+                print('reached request per minute limit')
+                time.sleep(60)
+                request_limit = 0
 
-        request_places = mapsAPI.place_request(
-            places_types=places_types,
-            latitude=point[0],
-            longitude=point[1],
-            radius=radius,
-            max_result_len=max_result_len)  # max 20
+            request_places = mapsAPI.place_request(
+                places_types=[place_type],
+                latitude=point[0],
+                longitude=point[1],
+                radius=radius,
+                max_result_len=max_result_len)  # max 20
 
-        request_number += 1
-        print(f"request {request_number}: {request_places}")
+            request_number += 1
+            request_limit += 1
+            print(f"type: {place_type}, request {request_number}: {request_places}")
 
-        response_dict = request_places.json()
-        places = response_dict.get('places')
+            response_dict = request_places.json()
+            places = response_dict.get('places')
 
-        # ------------------------- write JSON
-        if places:
-            print(f"{point[0]}, {point[1]} - {len(response_dict['places'])}")
-            new_record = {f"{point[0]}, {point[1]}": response_dict['places']}  # Whatever your structure is
-        else:
-            print(response_dict)
-            new_record = {f"{point[0]}, {point[1]}": {}}
+            # ------------------------- write JSON
+            if places:
+                print(f"{point[0]}, {point[1]} - {len(response_dict['places'])}")
+                new_record = {f"{place_type} - {point[0]}, {point[1]}": response_dict['places']}  # Whatever your structure is
+                found_places += len(response_dict['places'])
+            else:
+                print(response_dict)
+                new_record = {f"{place_type} - {point[0]}, {point[1]}": {}}
 
-        try:
-            with open(json_path, mode='r') as file:
-                data = json.load(file)
-                data.update(new_record)
-            with open(json_path, mode='w') as file:
-                json.dump(data, file, indent=4)
-        except Exception as e:
-            print(f"error: {e}")
-            with open(json_path, mode='w') as file:
-                json.dump(new_record, file, indent=4)
+            try:
+                with open(json_path, mode='r') as file:
+                    data = json.load(file)
+                    data.update(new_record)
+                with open(json_path, mode='w') as file:
+                    json.dump(data, file, indent=4)
+            except Exception as e:
+                print(f"warning: {e}")
+                with open(json_path, mode='w') as file:
+                    json.dump(new_record, file, indent=4)
+                    print('created new JSON file')
 
+    print(f"found_places: {found_places}")
     # Load the JSON data from a file
     with open(json_path, 'r', encoding='utf-8') as json_file:
         data = json.load(json_file)
