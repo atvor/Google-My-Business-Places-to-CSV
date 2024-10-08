@@ -1,87 +1,87 @@
 import json
-import time
+import math
+
+
+def decimal_range(x, y, jump, round_to):
+	"""Helper function to yield decimal values within a range."""
+	while x < y:
+		yield round(x, round_to)
+		x += jump
 
 
 def generate_points(lat_start,
                     lat_to,
                     lon_start,
                     lon_to,
-                    step=0.005,
-                    lat_cf=1,
-                    lon_cf=1,
-                    round_to=4):
-    def decimal_range(x, y, jump):
-        while x < y:
-            yield round(x, round_to)
-            x += jump
+                    step=500,
+                    round_to=6,
+                    overlap_factor=0.9):
+	"""Generates a grid of latitude and longitude points based on the step and overlap factor."""
+	lat_step = step / 111000 * overlap_factor  # Step size in degrees for latitude
+	lng_step = step / (111000 * math.cos(
+			math.radians(lat_start))) * overlap_factor  # Step size for longitude
 
-    lat = list(decimal_range(lat_start, lat_to, step * lat_cf))
-    lon = list(decimal_range(lon_start, lon_to, step * lon_cf))
+	lat = list(decimal_range(lat_start, lat_to, lat_step, round_to))
+	lon = list(decimal_range(lon_start, lon_to, lng_step, round_to))
 
-    points = []
-    for lat_el in lat:
-        for lon_el in lon:
-            points.append((lat_el, lon_el))
+	# Ensure that at least one point is generated if ranges are too small
+	if not lat:
+		lat = [round(lat_start, round_to)]
+	if not lon:
+		lon = [round(lon_start, round_to)]
 
-    return points
+	return [(lat_el, lon_el) for lat_el in lat for lon_el in lon]
 
 
-def bulk_points_to_json(points,
-                        mapsAPI,
-                        places_types,
-                        radius,
-                        json_path,
-                        max_result_len=20,
-                        request_per_minute=600):
-    request_number = 0
-    request_limit = 0
-    found_places = 0
-    for place_type in places_types:
-        print(place_type)
-        for point in points:
-            if request_limit >= request_per_minute:
-                print('reached request per minute limit')
-                time.sleep(60)
-                request_limit = 0
+def bulk_places_to_json(point, places, place_type, json_path):
+	"""Writes the places data to a JSON file, updating the existing file if it exists."""
+	new_record = {
+		f"{place_type} - {point[0]}, {point[1]}": {
+			'places': places or {},
+			'place_type': place_type,
+			'latitude': point[0],
+			'longitude': point[1],
+			'total': len(places)
+		}}
 
-            request_places = mapsAPI.place_request(
-                places_types=[place_type],
-                latitude=point[0],
-                longitude=point[1],
-                radius=radius,
-                max_result_len=max_result_len)  # max 20
+	try:
+		# Try to read and update existing JSON file
+		with open(json_path, 'r+', encoding='utf-8') as file:
+			try:
+				data = json.load(file)
+			except json.JSONDecodeError:
+				data = {}
+			data.update(new_record)
+			file.seek(0)
+			json.dump(data, file, indent=4)
+			file.truncate()
+	except FileNotFoundError:
+		# If file doesn't exist, create a new one
+		with open(json_path, 'w', encoding='utf-8') as file:
+			json.dump(new_record, file, indent=4)
+			print('Created a new JSON file')
 
-            request_number += 1
-            request_limit += 1
-            print(f"type: {place_type}, request {request_number}: {request_places}")
+	# Reload the updated JSON data
+	with open(json_path, 'r', encoding='utf-8') as file:
+		return json.load(file)
 
-            response_dict = request_places.json()
-            places = response_dict.get('places')
 
-            # ------------------------- write JSON
-            if places:
-                print(f"{point[0]}, {point[1]} - {len(response_dict['places'])}")
-                new_record = {f"{place_type} - {point[0]}, {point[1]}": response_dict['places']}  # Whatever your structure is
-                found_places += len(response_dict['places'])
-            else:
-                print(response_dict)
-                new_record = {f"{place_type} - {point[0]}, {point[1]}": {}}
+def remove_duplicates(data):
+	"""Removes duplicate entries by googleMapsUri."""
+	unique_uris = set()  # Track seen URIs globally
+	cleaned_data = {}  # Dictionary to store cleaned entries
 
-            try:
-                with open(json_path, mode='r') as file:
-                    data = json.load(file)
-                    data.update(new_record)
-                with open(json_path, mode='w') as file:
-                    json.dump(data, file, indent=4)
-            except Exception as e:
-                print(f"warning: {e}")
-                with open(json_path, mode='w') as file:
-                    json.dump(new_record, file, indent=4)
-                    print('created new JSON file')
+	for key, value in data.items():
+		if isinstance(value, list):  # Process lists only
+			unique_entries = []
+			for entry in value:
+				if isinstance(entry, dict):  # Ensure entry is a dictionary
+					uri = entry.get("googleMapsUri")
+					if uri and uri not in unique_uris:
+						unique_entries.append(entry)  # Add unique entry
+						unique_uris.add(uri)  # Mark URI as seen
+			cleaned_data[key] = unique_entries  # Update list with cleaned entries
+		else:
+			cleaned_data[key] = value  # Preserve non-list items as they are
 
-    print(f"found_places: {found_places}")
-    # Load the JSON data from a file
-    with open(json_path, 'r', encoding='utf-8') as json_file:
-        data = json.load(json_file)
-
-        return data
+	return cleaned_data  # Return cleaned dictionary
